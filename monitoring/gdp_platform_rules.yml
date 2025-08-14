@@ -1,0 +1,152 @@
+groups:
+  - name: gdp_platform.rules
+    rules:
+      # Application health
+      - alert: GDPBackendDown
+        expr: up{job="gdp-backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "GDP Backend is down"
+          description: "GDP Backend has been down for more than 1 minute."
+
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 2
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High response time"
+          description: "95th percentile response time is above 2 seconds."
+
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High error rate"
+          description: "Error rate is above 5% for more than 2 minutes."
+
+      # Database alerts
+      - alert: PostgreSQLDown
+        expr: up{job="postgres"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL is down"
+          description: "PostgreSQL database is down."
+
+      - alert: HighDatabaseConnections
+        expr: pg_stat_database_numbackends / pg_settings_max_connections > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High database connections"
+          description: "Database connections are above 80% of max connections."
+
+      - alert: DatabaseSlowQueries
+        expr: rate(pg_stat_database_blk_read_time[5m]) / rate(pg_stat_database_blks_read[5m]) > 100
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow database queries"
+          description: "Database queries are taking longer than expected."
+
+      # Redis alerts
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis is down"
+          description: "Redis cache is down."
+
+      - alert: HighRedisMemoryUsage
+        expr: redis_memory_used_bytes / redis_config_maxmemory > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High Redis memory usage"
+          description: "Redis memory usage is above 90%."
+
+      # GDP-specific alerts
+      - alert: HighGDPCalculationFailures
+        expr: rate(gdp_calculations_failed_total[5m]) / rate(gdp_calculations_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High GDP calculation failures"
+          description: "GDP calculation failure rate is above 10%."
+
+      - alert: MLModelPredictionErrors
+        expr: rate(ml_model_prediction_errors_total[5m]) > 5
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "ML model prediction errors"
+          description: "ML models are experiencing high error rates."
+
+      - alert: DataQualityIssues
+        expr: avg(gdp_data_quality_score) < 0.8
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Data quality issues detected"
+          description: "Average data quality score is below 80%."
+
+      # System resource alerts
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is above 80% for more than 5 minutes."
+
+      - alert: HighMemoryUsage
+        expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is above 85% for more than 5 minutes."
+
+      - alert: DiskSpaceLow
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) < 0.1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Low disk space"
+          description: "Disk space is below 10%."
+
+      # Business logic alerts
+      - alert: AnomalousGDPValues
+        expr: increase(gdp_anomalies_detected_total[1h]) > 10
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Multiple GDP anomalies detected"
+          description: "More than 10 GDP anomalies detected in the last hour."
+
+      - alert: DataIngestionStalled
+        expr: time() - max(last_data_ingestion_timestamp) > 3600
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Data ingestion stalled"
+          description: "No new data has been ingested for more than 1 hour."
