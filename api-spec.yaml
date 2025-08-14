@@ -1,0 +1,1096 @@
+openapi: 3.0.3
+info:
+  title: GDP AI/ML Analytics Platform API
+  description: |
+    Ultra-advanced GDP AI/ML analytics platform providing comprehensive economic intelligence
+    with AI-powered forecasting, real-time data integration, and advanced visualizations.
+    
+    ## Features
+    - Multi-method GDP calculation (Expenditure, Income, Output)
+    - AI/ML forecasting with ensemble models
+    - Real-time data integration from multiple sources
+    - Natural language query processing
+    - Advanced anomaly detection
+    - Uncertainty quantification
+    
+    ## Authentication
+    All endpoints require Bearer token authentication except for public health checks.
+    
+    ## Rate Limiting
+    API calls are limited to 1000 requests per hour per user.
+    
+    ## Versioning
+    This API uses semantic versioning. Current version: v1
+    
+  version: 1.0.0
+  contact:
+    name: GDP Platform Team
+    email: support@gdp-platform.com
+    url: https://gdp-platform.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.gdp-platform.com/api/v1
+    description: Production server
+  - url: https://staging-api.gdp-platform.com/api/v1
+    description: Staging server
+  - url: http://localhost:8000/api/v1
+    description: Development server
+
+security:
+  - BearerAuth: []
+
+paths:
+  # Health and System
+  /health:
+    get:
+      tags:
+        - System
+      summary: Health check endpoint
+      description: Returns system health status
+      security: []
+      responses:
+        '200':
+          description: System is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  # Authentication
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: User login
+      description: Authenticate user and return access token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: User registration
+      description: Register new user account
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Invalid input data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # GDP Calculation
+  /gdp/calculate:
+    post:
+      tags:
+        - GDP Calculation
+      summary: Calculate GDP
+      description: |
+        Calculate GDP using specified method with AI enhancements.
+        Supports three calculation methods:
+        - **expenditure**: C + I + G + (X - M)
+        - **income**: Sum of all income components
+        - **output**: Sum of sectoral gross value added
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GDPCalculationRequest'
+      responses:
+        '200':
+          description: GDP calculation completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GDPCalculationResponse'
+        '400':
+          description: Invalid input data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Data validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+
+  /gdp/historical/{country_code}:
+    get:
+      tags:
+        - GDP Calculation
+      summary: Get historical GDP data
+      description: Retrieve historical GDP data for a specific country
+      parameters:
+        - name: country_code
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^[A-Z]{2,3}$'
+          description: ISO country code (2 or 3 letters)
+          example: USA
+        - name: start_date
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Start date for data range
+          example: "2020-01-01"
+        - name: end_date
+          in: query
+          schema:
+            type: string
+            format: date
+          description: End date for data range
+          example: "2024-12-31"
+        - name: method
+          in: query
+          schema:
+            type: string
+            enum: [expenditure, income, output]
+          description: Calculation method filter
+        - name: include_components
+          in: query
+          schema:
+            type: boolean
+            default: false
+          description: Include component breakdown in response
+      responses:
+        '200':
+          description: Historical data retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoricalDataResponse'
+        '404':
+          description: Country not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /gdp/compare:
+    get:
+      tags:
+        - GDP Calculation
+      summary: Compare GDP across countries
+      description: Compare GDP data between multiple countries
+      parameters:
+        - name: country_codes
+          in: query
+          required: true
+          schema:
+            type: array
+            items:
+              type: string
+          style: form
+          explode: false
+          description: List of country codes to compare
+          example: ["USA", "CHN", "JPN"]
+        - name: period
+          in: query
+          schema:
+            type: string
+          description: Specific period for comparison
+          example: "2024-Q1"
+        - name: normalize
+          in: query
+          schema:
+            type: boolean
+            default: false
+          description: Normalize values by population
+      responses:
+        '200':
+          description: Comparison data retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComparisonResponse'
+
+  # Forecasting
+  /forecasting/predict/{country_code}:
+    post:
+      tags:
+        - AI/ML Forecasting
+      summary: Generate GDP forecast
+      description: Generate AI-powered GDP forecasts using ensemble models
+      parameters:
+        - name: country_code
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ISO country code
+          example: USA
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForecastRequest'
+      responses:
+        '200':
+          description: Forecast generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForecastResponse'
+        '400':
+          description: Invalid forecast parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /forecasting/models:
+    get:
+      tags:
+        - AI/ML Forecasting
+      summary: Get available models
+      description: List all available forecasting models and their performance metrics
+      responses:
+        '200':
+          description: Models retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelsResponse'
+
+  # AI Services
+  /ai/query:
+    post:
+      tags:
+        - AI Services
+      summary: Natural language query
+      description: Process natural language queries about GDP data using AI
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NLQueryRequest'
+      responses:
+        '200':
+          description: Query processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NLQueryResponse'
+        '400':
+          description: Invalid query
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /ai/insights:
+    post:
+      tags:
+        - AI Services
+      summary: Generate AI insights
+      description: Generate AI-powered insights from GDP data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InsightsRequest'
+      responses:
+        '200':
+          description: Insights generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InsightsResponse'
+
+  # Data Integration
+  /data/sources:
+    get:
+      tags:
+        - Data Integration
+      summary: Get data sources
+      description: List all available data sources and their status
+      responses:
+        '200':
+          description: Data sources retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataSourcesResponse'
+
+  /data/sync:
+    post:
+      tags:
+        - Data Integration
+      summary: Sync data from external sources
+      description: Trigger data synchronization from external APIs
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DataSyncRequest'
+      responses:
+        '202':
+          description: Data sync started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataSyncResponse'
+
+  # Visualization
+  /viz/generate:
+    post:
+      tags:
+        - Visualization
+      summary: Generate visualizations
+      description: Generate charts and visualizations for GDP data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VisualizationRequest'
+      responses:
+        '200':
+          description: Visualization generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VisualizationResponse'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    # Basic response schemas
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "healthy"
+        version:
+          type: string
+          example: "1.0.0"
+        timestamp:
+          type: string
+          format: date-time
+        components:
+          type: object
+          properties:
+            database:
+              type: string
+              example: "healthy"
+            redis:
+              type: string
+              example: "healthy"
+            ml_models:
+              type: string
+              example: "healthy"
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+        status_code:
+          type: integer
+          description: HTTP status code
+        timestamp:
+          type: string
+          format: date-time
+        path:
+          type: string
+          description: Request path
+        details:
+          type: object
+          description: Additional error details
+
+    ValidationErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Validation failed"
+        status_code:
+          type: integer
+          example: 422
+        validation_errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+              invalid_value:
+                oneOf:
+                  - type: string
+                  - type: number
+                  - type: boolean
+
+    # Authentication schemas
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          example: "user@example.com"
+        password:
+          type: string
+          format: password
+          example: "secure_password"
+
+    LoginResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+          description: JWT access token
+        token_type:
+          type: string
+          example: "bearer"
+        expires_in:
+          type: integer
+          description: Token expiration time in seconds
+          example: 3600
+        user:
+          $ref: '#/components/schemas/User'
+
+    RegisterRequest:
+      type: object
+      required:
+        - username
+        - email
+        - password
+        - first_name
+        - last_name
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+          example: "johndoe"
+        email:
+          type: string
+          format: email
+          example: "john@example.com"
+        password:
+          type: string
+          format: password
+          minLength: 8
+        first_name:
+          type: string
+          maxLength: 100
+          example: "John"
+        last_name:
+          type: string
+          maxLength: 100
+          example: "Doe"
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        first_name:
+          type: string
+        last_name:
+          type: string
+        role:
+          type: string
+          enum: [user, admin, analyst]
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        last_login:
+          type: string
+          format: date-time
+
+    UserResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/User'
+        message:
+          type: string
+
+    # GDP Calculation schemas
+    GDPCalculationRequest:
+      type: object
+      required:
+        - country_code
+        - period
+        - method
+        - data
+      properties:
+        country_code:
+          type: string
+          pattern: '^[A-Z]{2,3}$'
+          description: ISO country code
+          example: "USA"
+        period:
+          type: string
+          pattern: '^\d{4}(-Q[1-4]|-\d{2})?$'
+          description: Time period (YYYY, YYYY-QX, YYYY-MM)
+          example: "2024-Q1"
+        method:
+          type: string
+          enum: [expenditure, income, output]
+          description: GDP calculation method
+          example: "expenditure"
+        data:
+          type: object
+          description: GDP component data (varies by method)
+          example:
+            consumption: 18500.0
+            investment: 4800.0
+            government_spending: 4200.0
+            exports: 2800.0
+            imports: 3300.0
+        apply_ai_corrections:
+          type: boolean
+          default: true
+          description: Apply AI-based corrections and enhancements
+        include_uncertainty:
+          type: boolean
+          default: true
+          description: Include uncertainty analysis in results
+
+    GDPCalculationResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/GDPResult'
+        message:
+          type: string
+
+    GDPResult:
+      type: object
+      properties:
+        gdp_value:
+          type: number
+          format: float
+          description: Calculated GDP value in billions USD
+          example: 26500.0
+        components:
+          type: object
+          description: Component breakdown
+        country_code:
+          type: string
+          example: "USA"
+        period:
+          type: string
+          example: "2024-Q1"
+        method:
+          type: string
+          example: "expenditure"
+        confidence_interval:
+          type: array
+          items:
+            type: number
+          minItems: 2
+          maxItems: 2
+          description: 95% confidence interval [lower, upper]
+          example: [26300.0, 26700.0]
+        quality_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: Data quality score (0-1)
+          example: 0.95
+        anomaly_flags:
+          type: object
+          additionalProperties:
+            type: boolean
+          description: Anomaly detection flags for each component
+        metadata:
+          type: object
+          description: Additional calculation metadata
+        calculation_timestamp:
+          type: string
+          format: date-time
+
+    HistoricalDataResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            country_code:
+              type: string
+            records:
+              type: array
+              items:
+                $ref: '#/components/schemas/GDPResult'
+            summary:
+              type: object
+              properties:
+                total_records:
+                  type: integer
+                average_gdp:
+                  type: number
+                growth_rate:
+                  type: number
+                latest_period:
+                  type: string
+
+    ComparisonResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            countries:
+              type: array
+              items:
+                type: object
+                properties:
+                  country_code:
+                    type: string
+                  gdp_value:
+                    type: number
+                  rank:
+                    type: integer
+                  share_of_total:
+                    type: number
+            total_gdp:
+              type: number
+            period:
+              type: string
+
+    # Forecasting schemas
+    ForecastRequest:
+      type: object
+      properties:
+        forecast_horizon:
+          type: integer
+          minimum: 1
+          maximum: 20
+          default: 4
+          description: Number of periods to forecast
+        include_features:
+          type: array
+          items:
+            type: string
+          description: Additional features to include in forecasting
+        model_preference:
+          type: string
+          enum: [lstm, transformer, xgboost, ensemble]
+          description: Preferred forecasting model
+        ensemble_method:
+          type: string
+          enum: [weighted_average, voting, stacking]
+          default: "weighted_average"
+        return_uncertainty:
+          type: boolean
+          default: true
+        scenario_adjustments:
+          type: object
+          description: Scenario-based adjustments to apply
+
+    ForecastResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            predictions:
+              type: array
+              items:
+                type: number
+              description: Forecasted GDP values
+            timestamps:
+              type: array
+              items:
+                type: string
+                format: date-time
+              description: Forecast periods
+            confidence_intervals:
+              type: array
+              items:
+                type: array
+                items:
+                  type: number
+                minItems: 2
+                maxItems: 2
+              description: Confidence intervals for each prediction
+            model_info:
+              type: object
+              description: Information about models used
+            ensemble_method:
+              type: string
+            forecast_horizon:
+              type: integer
+            uncertainty_estimates:
+              type: array
+              items:
+                type: number
+              description: Uncertainty estimates for each prediction
+            metadata:
+              type: object
+
+    ModelsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              model_name:
+                type: string
+              model_type:
+                type: string
+              version:
+                type: string
+              performance_metrics:
+                type: object
+                properties:
+                  mse:
+                    type: number
+                  mae:
+                    type: number
+                  mape:
+                    type: number
+                  r2_score:
+                    type: number
+              last_trained:
+                type: string
+                format: date-time
+              status:
+                type: string
+                enum: [active, training, inactive]
+
+    # AI Services schemas
+    NLQueryRequest:
+      type: object
+      required:
+        - query
+      properties:
+        query:
+          type: string
+          minLength: 10
+          maxLength: 500
+          description: Natural language query about GDP data
+          example: "What is the GDP growth rate for United States in 2024?"
+        context:
+          type: object
+          description: Additional context for the query
+        include_visualization:
+          type: boolean
+          default: true
+        response_format:
+          type: string
+          enum: [json, text, html]
+          default: "json"
+
+    NLQueryResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            answer:
+              type: string
+              description: Natural language answer
+            data:
+              type: object
+              description: Structured data supporting the answer
+            visualizations:
+              type: array
+              items:
+                type: object
+              description: Generated visualizations
+            confidence:
+              type: number
+              format: float
+              minimum: 0
+              maximum: 1
+            sources:
+              type: array
+              items:
+                type: string
+              description: Data sources used
+            suggestions:
+              type: array
+              items:
+                type: string
+              description: Related query suggestions
+            processing_time:
+              type: number
+              format: float
+              description: Query processing time in seconds
+
+    InsightsRequest:
+      type: object
+      required:
+        - data
+        - countries
+      properties:
+        data:
+          type: object
+          description: GDP data to analyze
+        countries:
+          type: array
+          items:
+            type: string
+          description: Countries to analyze
+
+    InsightsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                enum: [trend, anomaly, comparison, prediction]
+              message:
+                type: string
+              importance:
+                type: string
+                enum: [low, medium, high]
+              data_points:
+                type: array
+              confidence:
+                type: number
+
+    # Data Integration schemas
+    DataSourcesResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              source_type:
+                type: string
+              url:
+                type: string
+              status:
+                type: string
+                enum: [active, inactive, error]
+              last_update:
+                type: string
+                format: date-time
+              update_frequency:
+                type: string
+
+    DataSyncRequest:
+      type: object
+      properties:
+        sources:
+          type: array
+          items:
+            type: string
+          description: Specific sources to sync (empty for all)
+        force_refresh:
+          type: boolean
+          default: false
+
+    DataSyncResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            job_id:
+              type: string
+            status:
+              type: string
+              enum: [started, queued]
+            estimated_completion:
+              type: string
+              format: date-time
+
+    # Visualization schemas
+    VisualizationRequest:
+      type: object
+      required:
+        - viz_type
+        - data_source
+      properties:
+        viz_type:
+          type: string
+          enum: [line, bar, map, 3d, scatter, heatmap]
+        data_source:
+          type: string
+        country_codes:
+          type: array
+          items:
+            type: string
+        time_range:
+          type: array
+          items:
+            type: string
+          minItems: 2
+          maxItems: 2
+        aggregation:
+          type: string
+          enum: [none, quarterly, yearly]
+          default: "none"
+        include_forecast:
+          type: boolean
+          default: false
+        style_preferences:
+          type: object
+
+    VisualizationResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            visualization_id:
+              type: string
+            chart_data:
+              type: object
+            chart_config:
+              type: object
+            download_links:
+              type: object
+              properties:
+                png:
+                  type: string
+                pdf:
+                  type: string
+                svg:
+                  type: string
+
+  examples:
+    GDPCalculationExampleRequest:
+      summary: Expenditure approach calculation
+      value:
+        country_code: "USA"
+        period: "2024-Q1"
+        method: "expenditure"
+        data:
+          consumption: 18500.0
+          investment: 4800.0
+          government_spending: 4200.0
+          exports: 2800.0
+          imports: 3300.0
+        apply_ai_corrections: true
+        include_uncertainty: true
+
+    ForecastExampleRequest:
+      summary: 4-quarter GDP forecast
+      value:
+        forecast_horizon: 4
+        model_preference: "ensemble"
+        ensemble_method: "weighted_average"
+        return_uncertainty: true
+
+    NLQueryExampleRequest:
+      summary: Natural language GDP query
+      value:
+        query: "Compare the GDP growth between USA and China over the last 5 years"
+        include_visualization: true
+        response_format: "json"
+
+tags:
+  - name: System
+    description: System health and status endpoints
+  - name: Authentication
+    description: User authentication and authorization
+  - name: GDP Calculation
+    description: GDP calculation using multiple methodologies
+  - name: AI/ML Forecasting
+    description: AI-powered GDP forecasting and predictions
+  - name: AI Services
+    description: Natural language processing and AI insights
+  - name: Data Integration
+    description: External data source integration and synchronization
+  - name: Visualization
+    description: Chart and visualization generation
+
+externalDocs:
+  description: GDP Platform Documentation
+  url: https://docs.gdp-platform.com
